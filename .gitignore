@@ -1,0 +1,7 @@
+lean/.lake/
+lean/lake-manifest.json
+paper/*.aux
+paper/*.log
+paper/*.out
+*.csv.gz
+__pycache__/

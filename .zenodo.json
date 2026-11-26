@@ -1,0 +1,8 @@
+{
+  "title": "Saturated Signed Ripple Dynamics on Directed Networks: Machine-Checked Theory and a Preregistered Empirical Test (code, Lean proofs, data analysis)",
+  "upload_type": "software",
+  "creators": [{"name": "Huang, Ruhai", "affiliation": "Wanyouzhiliu Tech"}],
+  "license": "MIT",
+  "description": "Lean 4/Mathlib formalisation (50 theorems, 63 lemmas, no sorry), synthetic numerical checks, preregistered analysis plans with SHA-256 hashes, analysis scripts and outputs for a Bitcoin OTC test, and the LaTeX source of the accompanying preprint (CC BY 4.0).",
+  "keywords": ["signed networks", "structural balance", "recurrent networks", "stability", "Lean 4", "Mathlib", "formal verification", "preregistration"]
+}

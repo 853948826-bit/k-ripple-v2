@@ -1,0 +1,582 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{fontspec}
+\usepackage{fancyvrb}
+\usepackage{needspace}
+\newfontfamily\leanfont{DejaVuSansMono.ttf}
+\newfontfamily\symfont{STIXTwoMath-Regular.otf}
+\newcommand{\sym}[1]{{\symfont #1}}
+\usepackage[hidelinks]{hyperref}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\lean}[1]{\texttt{\small #1}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\sech}{\operatorname{sech}}
+\newcommand{\diag}{\operatorname{diag}}
+
+\title{Saturated Signed Ripple Dynamics on Directed Networks:\\
+Machine-Checked Theory and a Preregistered Empirical Test}
+\author{Ruhai Huang\\ \small Wanyouzhiliu Tech}
+\date{Preprint v0.1 --- November 2026}
+
+\setlength{\emergencystretch}{2em}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We study a minimal model of signed influence (``ripples'') on a directed network,
+$r(t+1)=D(t)\,r(t)+W(t)\tanh r(t)+s(t)$, with a signed, unbounded state, retention $D$, a signed and
+\emph{unnormalised} influence matrix $W$, and saturating transmission. We assemble known results from
+recurrent-network stability, single-neuron bifurcation theory and spectral graph theory into one signed
+regime map, and machine-check all of it in Lean~4 with Mathlib. The results are: global boundedness
+under arbitrary switching; a common-weight contraction certificate, equivalent for constant
+coefficients to $\rho(|D|+|W|)<1$; a scalar regime map indexed by the signed gain $K=d+w$, including the
+critical law $t\,x(t)^2\to3/(2w)$ at $K=1$; the inequality $\rho(W)\le\rho(|W|)$, with equality under
+structural balance; exact identifiability criteria; and a global formula for the input--response gain.
+The development has 50 theorems and 63 lemmas (1{,}907 lines, no \texttt{sorry}, standard axioms only),
+and the formalisation refuted three of our own informal claims. Two lightweight-preregistered fits of a
+reduced-form version on the Bitcoin OTC signed network found no detectable propagation gain over
+self-dynamics, with a minimum detectable effect of about $5\%$. Distrust edges did reverse sign, as
+balance theory predicts. We specify the data and experiments needed for a decisive test.
+\end{abstract}
+
+\section{Introduction}
+
+Many systems carry \emph{signed} influence along \emph{directed} links. Trust and distrust ratings, approval
+and disapproval among agents, excitatory and inhibitory couplings, and supportive versus adversarial
+messages in multi-agent software systems are all examples. A common modelling instinct is to propagate a
+scalar ``ripple'' linearly, $r(t+1)=Ar(t)+s(t)$, and to read off stability from the spectral radius of
+$A$. This has three well-known problems. Linear growth is unbounded, while real influence saturates.
+Per-time-step spectral conditions do not control switched systems. And row-normalising $A$ to restore
+stability erases the very gain one wishes to measure.
+
+This paper develops the smallest model we found that avoids these problems while remaining
+falsifiable, and tests it. Our contributions are the following.
+
+\begin{enumerate}
+\item \textbf{Model (Section~\ref{sec:model}).} A saturated, signed, directed ripple equation in which the
+      local signed gain $K=d+w$ is a dynamical parameter that may be negative or exceed one, rather
+      than a score clipped to $[0,1]$.
+\item \textbf{Theory (Section~\ref{sec:theory}).} Global boundedness under switching, a common-weight
+      contraction certificate and its spectral equivalent, a complete scalar regime map indexed by $K$
+      including the exact critical rate, the formally verified half of a frustration-attenuation result
+      linking structural balance to dynamics, identifiability criteria, and a global gain formula.
+\item \textbf{Machine-checked proofs (Section~\ref{sec:formal}).} Every theorem stated as ``verified'' is
+      proved in Lean~4/Mathlib. Two proofs avoid machinery that Mathlib lacks. The spectral certificate
+      avoids the Perron--Frobenius theorem, and the gain formula is proved from a second-order Taylor
+      bound instead of the implicit function theorem.
+\item \textbf{Self-correction.} The formalisation refuted three claims of our own earlier draft. We list
+      them in Table~\ref{tab:corrections}, because we regard documented refutations as part of the
+      evidence.
+\item \textbf{Preregistered empirical test (Section~\ref{sec:empirical}).} Two rounds on a public signed
+      network. The results are mostly negative for the propagation term, and we report them as such.
+\end{enumerate}
+
+\paragraph{Relation to prior work and novelty.} The model is a discrete-time additive recurrent network
+of Hopfield/echo-state type~\cite{hopfield1984,jaeger2001}. Sufficient conditions for global stability of
+such networks via (diagonally) scaled norms and similarity transformations are
+classical~\cite{jin1994,buehner2006,yildiz2012}. Contraction
+analysis more broadly is due to~\cite{lohmiller1998}. The inequality $\rho(W)\le\rho(|W|)$ and its
+equality case are Wielandt's theorem~\cite{wielandt1950,hornjohnson}. Structural balance goes back
+to~\cite{heider1946,harary1953,cartwright1956}, and dynamics on signed networks with antagonistic
+interactions were studied by~\cite{altafini2013}. Walk-based spectral measures of balance, such as
+$\operatorname{tr}e^{A}/\operatorname{tr}e^{|A|}$~\cite{estrada2014}, and their
+critiques~\cite{kirkley2019} are close relatives of our ratio $\eta$. Bifurcations of a single
+self-coupled model neuron, including period doubling and hysteresis, were analysed
+by~\cite{pasemann1993}; our scalar regime map is an instance of that analysis. Lean~4 formalisations of
+Hopfield networks, Boltzmann machines and the Perron--Frobenius theorem for irreducible nonnegative
+matrices were given by~\cite{cipollina2025}. Critical $t^{-1/2}$ relaxation for maps
+$x\mapsto x-ax^3+O(x^5)$ is classical asymptotics~\cite{debruijn1958}. We do \emph{not} claim these
+individual mathematical facts as new. Our contribution is to assemble them into a single, signed regime
+map for an influence model. We also supply complete kernel-checked proofs, some in a more general form
+than the textbook statements (time-varying coefficients, non-diagonal $D$), document where formalisation corrected informal claims, and
+confront the model with preregistered data.
+
+\section{Model}\label{sec:model}
+
+\begin{definition}[Saturated signed ripple equation]
+For $n$ nodes, let
+\begin{equation}\label{eq:model}
+  r(t+1)=D(t)\,r(t)+W(t)\,\phi\big(r(t)\big)+s(t),
+\end{equation}
+where $\phi$ acts componentwise. In the base model $\phi=\tanh$, $D=\diag(d_i)$ with $|d_i|<1$,
+$W_{ij}\in\R$ is the signed influence of $j$ on $i$, and $s$ is a bounded external input. The state
+$r_i$ is signed and unbounded. Positive and negative values denote the two directions of a
+channel-specific reference axis.
+\end{definition}
+
+The retention term is decomposed as $d_i=\beta_i-\lambda_i\kappa_i$: an intrinsic retention $\beta_i$ minus
+a dissipation $\lambda_i$ that scales with an externally controllable precision $\kappa_i$. Several
+channels per node are handled by flattening $r$ into $\R^{nc}$ with block matrices. All results below hold
+in that dimension, and Kronecker-separable couplings are a special case.
+
+\paragraph{Why saturation.} Since $\tanh r=r-r^3/3+O(r^5)$, we have $W\tanh r\approx Wr-Wr^3/3$. Truncating
+at the cubic term instead diverges in discrete time at moderate amplitude: for $x\mapsto0.9x-0.5x^3$
+started at $x_0=2.5$, the fourth iterate has magnitude $9.4\times10^{15}$. The saturated form keeps the small-amplitude behaviour and removes the divergence.
+
+\paragraph{The signed gain $K$.} Linearising at the origin gives the Jacobian $J=D+W$. For a single node,
+$f(x)=dx+w\tanh x$ and $K:=f'(0)=d+w$. $K$ is not normalised. Its sign and size select the regime
+(Theorem~\ref{thm:regimes}).
+
+\section{Theory}\label{sec:theory}
+
+Throughout, $\|\cdot\|$ is the $\ell^\infty$ norm, $|A|$ is the entrywise absolute value, and
+$\rho$ is the spectral radius. Lean identifiers of the verified statements are given in brackets.
+
+\subsection{Boundedness and contraction}
+
+\begin{theorem}[Global boundedness under arbitrary switching; \lean{P1\_global\_bound}]\label{thm:bound}
+Let $D(t),W(t)$ be arbitrary real matrices with row sums of absolute values $\le d<1$ and $\le w$
+respectively. Let $\|s(t)\|\le S$ and $|\phi|\le 1$. Then every solution of~\eqref{eq:model} satisfies
+\[
+  \|r(t)\|\le d^t\|r(0)\|+(w+S)\frac{1-d^t}{1-d}.
+\]
+\end{theorem}
+
+The proof is an elementary one-line induction. The point is that the bound does not involve the
+spectrum of $W$. Influence can be amplified, up to saturation, but
+cannot explode. Note that $D$ need not be diagonal.
+
+\begin{definition}[Common weight certificate]
+$(v,c)$ with $v>0$ and $0\le c<1$ is a common weight for $(D(t),W(t))_t$ if
+$\sum_j\big(|D_{ij}(t)|+|W_{ij}(t)|\big)v_j\le c\,v_i$ for all $t,i$.
+\end{definition}
+
+\begin{theorem}[Global contraction; \lean{P2\_contraction}, \lean{P2\_exists\_equilibrium},
+\lean{P2\_unique\_equilibrium}, \lean{P2\_global\_attraction}]\label{thm:contraction}
+Let $\phi$ be $1$-Lipschitz and suppose a common weight $(v,c)$ exists. Then any two solutions satisfy
+$|r_i(t)-q_i(t)|\le C_0\,c^t v_i$ whenever $|r_i(0)-q_i(0)|\le C_0 v_i$. If $D,W,s$ are constant, there
+is a unique equilibrium, and it is globally attracting.
+\end{theorem}
+
+\begin{theorem}[Spectral form; \lean{weight\_iff\_rho\_lt\_one}, \lean{P2\_tanh\_of\_rho}]\label{thm:spectral}
+For a nonnegative $M\in\R^{n\times n}$ with $n\ge1$, a common weight exists, i.e.\ $Mv\le cv$ with $v>0$ and
+$c<1$, if and only if $\rho(M)<1$. Hence $\rho(|D|+|W|)<1$ suffices for Theorem~\ref{thm:contraction}
+in the time-invariant case.
+\end{theorem}
+
+\begin{remark}
+For switched systems, the relevant object is a \emph{common} certificate, not the per-step spectrum.
+Section~\ref{sec:switch} gives a machine-checked counterexample. Our proof of the ``if'' direction
+avoids Perron--Frobenius. It uses Gelfand's formula to find $N$ with $\|M^N\|<r^N$ for
+$\rho(M)<r<1$, and sets $v=\sum_{k<N}(M/r)^k\mathbf 1$.
+\end{remark}
+
+\subsection{The scalar regime map}
+
+Let $f(x)=dx+w\tanh x$ with $|d|<1$ and $K=d+w$. A uniform remainder $|f(x)-Kx|\le|w|\,|x|^3$ underlies
+the local statements.
+
+\needspace{14\baselineskip}
+\begin{theorem}[Regimes indexed by $K$]\label{thm:regimes}
+\leavevmode
+\begin{center}
+\small\upshape
+\begin{tabular}{@{}l p{0.47\linewidth} p{0.31\linewidth}@{}}
+\toprule
+$K$ & behaviour & Lean \\
+\midrule
+$K<-1$ & stable period-2 orbit $\pm p$ (non-decaying oscillation) & \lean{P3\_period\_two} \\
+$-1<K<0$ & locally, alternating-sign geometric decay & \lean{P3\_alternating\_decay} \\
+$K=0$ & linear response vanishes; $|f(x)|\le|w||x|^3$ & \lean{P3\_decoupled} \\
+$0<K<1$ & locally, sign-preserving geometric decay & \lean{P3\_monotone\_decay} \\
+$K=1$ & global convergence to $0$, slower than any geometric rate & \lean{P3\_K1\_converges}, \lean{P3\_K1\_slow} \\
+$K>1$ & origin unstable; stable symmetric fixed points $\pm p$ & \lean{P3\_origin\_unstable}, \lean{P3\_bistable} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{theorem}
+
+The bifurcations at $K=\pm1$ (pitchfork and period doubling) are those of the classical single-neuron
+map~\cite{pasemann1993}. What the formal development adds is complete proofs, including the existence
+and stability of the nontrivial fixed points and of the $2$-cycle.
+
+\begin{theorem}[Exact critical slowing; \lean{P3\_K1\_rate}, \lean{P3\_K1\_rate\_pos}]\label{thm:critical}
+Let $K=1$ and $|d|<1$, so $w=1-d>0$. If the orbit never hits $0$ exactly, then
+\[
+  t\,x(t)^2\longrightarrow\frac{3}{2w},\qquad\text{equivalently}\qquad \sqrt t\,|x(t)|\to\sqrt{3/(2w)}.
+\]
+For $0\le d<1$ and $x_0\neq0$ the orbit never hits $0$, so the conclusion holds unconditionally.
+\end{theorem}
+
+\begin{proof}[Proof idea]
+Two derivative-sign arguments give the sandwich $x^3/3-2x^5/15\le x-\tanh x\le x^3/3$ for $x\ge0$.
+Hence $1/x(t+1)^2-1/x(t)^2\to 2w/3$, and the Cesàro mean gives the result.
+\end{proof}
+
+Theorem~\ref{thm:critical} makes a prediction that is not visible from $K$ alone. Two nodes at the same
+critical gain $K=1$ relax at different speeds, and recovery is slower when more of the gain is carried
+by linear retention $d$ than by saturating influence $w$. Numerically, with $2\times10^6$ steps from
+$x_0=1$, $t\,x^2$ equals $3.000005$, $1.499997$ and $15.0004$ for $(d,w)=(0.5,0.5),(0,1),(0.9,0.1)$. The
+predicted values are $3$, $1.5$ and $15$.
+
+\begin{proposition}[Sign-determined basins and their failure; \lean{P3\_basin}, \lean{P3\_basin\_fails\_neg\_d}]
+If $K>1$ and $0\le d<1$, every $x_0>0$ converges to $+p$ and every $x_0<0$ converges to $-p$. For $d<0$ this
+fails: with $d=-0.9$ and $w=2$ (so $K=1.1$) we have $f(10)<0$, so a large positive perturbation can
+end in the negative state.
+\end{proposition}
+
+\subsection{Frustration attenuates propagation}
+
+\begin{theorem}[\lean{P4\_rho\_le\_rho\_abs}, \lean{P4\_balanced\_eq}, \lean{P4\_eta\_le\_one}, \lean{P4\_eta\_balanced}]\label{thm:frustration}
+For every real matrix $W$, $\rho(W)\le\rho(|W|)$. If $W$ is structurally balanced or antibalanced,
+i.e.\ $W_{ij}=\theta\,\sigma_i|W_{ij}|\sigma_j$ with $\sigma_i,\theta\in\{\pm1\}$, then
+$\rho(W)=\rho(|W|)$. Consequently the frustration attenuation factor
+$\eta:=\rho(W)/\rho(|W|)$ satisfies $\eta\le1$, with $\eta=1$ under balance.
+\end{theorem}
+
+No irreducibility is needed for the inequality. The proof uses $|W^k|\le|W|^k$ entrywise and Gelfand's
+formula. The converse, that equality for irreducible $W$ forces balance up to a diagonal unitary
+similarity, is Wielandt's theorem~\cite{wielandt1950}. It is \emph{not} formalised here, because it requires
+Perron--Frobenius theory, which Mathlib~4.34 does not provide. An external Lean~4 formalisation of
+Perron--Frobenius for irreducible nonnegative matrices~\cite{cipollina2025} offers a route to close this
+gap. Theorem~\ref{thm:frustration} is therefore the formally verified \emph{half} of the interface between
+the topology of a signed graph and the dynamics. The substantive claim, that frustrated cycles
+strictly reduce linear propagation gain, rests on the classical theorem and is not machine-checked here.
+
+\paragraph{Frustration count is not the right statistic.}
+We drew 249 random strongly connected
+weighted digraphs with 3--7 nodes. A balanced signing $S|W|S$ of each gave $\eta=1$ in all 249 cases.
+Random signings that were frustrated and not antibalanced (234 cases) gave $\eta<1$ in 232, with median
+$\eta=0.68$. The two exceptions were periodic graphs with complex-phase balance, consistent with
+Wielandt's equality case. However, the Spearman correlation between $\eta$ and the frustration index
+(the minimum number of sign flips needed for balance, divided by the number of edges) was only
+$-0.105$ ($p=0.11$). The spectral ratio $\eta$, not a count of ``bad'' edges, should be used.
+$\eta$ belongs to the family of walk-based balance indices~\cite{estrada2014}. As a ratio of spectral radii
+it isolates the dominant long-walk contribution, which is the quantity that controls linear
+propagation gain. Whether it shares the large-network bias reported for such
+indices~\cite{kirkley2019} is open.
+
+\subsection{Identifiability}
+
+The model is linear in its parameters. For node $i$, $r_i(t+1)$ is regressed on
+$[r_i(t),\tanh r(t),s_i(t)]$ with design matrix $Z$.
+
+\begin{theorem}[\lean{P5\_identifiable\_iff}, \lean{P5\_ols\_exact}, \lean{P5\_ols\_error},
+\lean{P5\_diag\_separable}, \lean{P5\_diag\_weak}, \lean{P5\_diag\_gram}, \lean{P5\_kappa\_identify}]\label{thm:ident}
+\leavevmode
+\begin{enumerate}
+\item Parameters are unique iff $\det(Z^\top Z)\ne0$. Least squares then recovers them exactly, and with
+      noise $\varepsilon$ the error is exactly $(Z^\top Z)^{-1}Z^\top\varepsilon$.
+\item Retention $d$ and self-influence $W_{ii}$ are separable from two samples $x_1,x_2$ iff
+      $x_1\ne0$, $x_2\ne0$ and $|x_1|\ne|x_2|$. The key lemma is that $\tanh x/x$ is strictly decreasing on $(0,\infty)$.
+\item Along the direction $(d+c,\,W_{ii}-c)$ predictions change by at most $|c||x|^3$. Correspondingly, the
+      quadratic form of the Gram matrix of $[x,\tanh x]$ along $(1,-1)$ is at most $\sum_t x_t^6$. At small
+      amplitude, separating $d$ from $W_{ii}$ is a sixth-order effect, and noise is amplified along
+      that direction.
+\item In $d=\beta-\lambda\kappa$, $\beta$ and $\lambda$ are identifiable iff $\kappa$ takes at least two values.
+\end{enumerate}
+\end{theorem}
+
+Item~3 says that saturation is what makes self-dynamics identifiable. Item~4 is a hard experimental
+design requirement: testing ``higher precision implies stronger dissipation'' requires externally
+varied $\kappa$.
+
+\subsection{Input--response gain}
+
+\begin{theorem}[Global gain formula; \lean{P6\_invertible}, \lean{P6\_equilibrium\_map}, \lean{P6\_lipschitz}, \lean{P6\_gain}]\label{thm:gain}
+Assume a common weight $(v,c)$ for constant $D,W$, with $\phi=\tanh$. Then:
+\begin{enumerate}
+\item $I-D-W\diag(\sech^2x)$ is invertible at every $x$.
+\item The equilibrium map $s\mapsto r^*(s)$ is well defined and Lipschitz, with constant
+      \[ L=\Big(\sum_j v_j^{-1}\Big)\Big(\sum_j v_j\Big)\Big/(1-c). \]
+\item $r^*$ is Fréchet differentiable at every $s$, with
+      \[ G(s)=\frac{\partial r^*}{\partial s}=\big(I-D-W\diag(\sech^2 r^*(s))\big)^{-1}. \]
+\end{enumerate}
+\end{theorem}
+
+$G_{ij}$ is the signed amount of ripple ultimately produced at $i$ by a unit excitation at $j$. This is
+the model's behavioural quantity. The proof uses the second-order remainder
+$|\tanh(a+\delta)-\tanh a-\sech^2a\,\delta|\le2\delta^2$ rather than the implicit function theorem. The
+formula holds at every $s$ because the common-weight condition makes the equilibrium globally unique.
+
+\begin{proposition}[Cooperative networks; \lean{P6\_cooperative}]
+If in addition $D,W\ge0$ entrywise, then $0\le G\le(I-D-W)^{-1}$ entrywise: saturation can only reduce gains.
+\end{proposition}
+
+In signed networks this monotonicity fails. With $d=0$, $w=-0.9$ and constant input $s=1.5$, saturation
+raises the gain from the linear value $0.526$ to $0.686$. Across 100 random systems the analytic $G$ matched finite differences to
+$2.4\times10^{-9}$, and the median ratio of saturated to linear total gain was $0.70$.
+
+\subsection{Switching: a machine-checked counterexample}\label{sec:switch}
+
+\begin{proposition}[Switching counterexample]
+Let $A_1=\begin{psmallmatrix}0.3&3\\0&0.3\end{psmallmatrix}$ and
+$A_2=\begin{psmallmatrix}0.3&0\\3&0.3\end{psmallmatrix}$. Each has the single eigenvalue $0.3$. Alternating
+$r(t+1)=A_{t\bmod 2}\,r(t)$ from $(1,1)$ gives $r_2(2k)\ge9^k$, so the trajectory is unbounded. The
+common-weight certificate correctly refuses this family: any common weight needs $c\ge3.3$. The
+saturated version $r(t+1)=0.3\,r+W(t)\tanh r$, with $W(t)$ switching arbitrarily between the two
+off-diagonal parts, obeys $\|r(t)\|\le0.3^t\|r(0)\|+3(1-0.3^t)/0.7$.
+(Lean: \lean{SW\_single\_eigen}, \lean{SW\_linear\_diverges}, \lean{SW\_no\_common\_weight},
+\lean{SW\_saturated\_bounded}.)
+\end{proposition}
+
+\section{Formalisation}\label{sec:formal}
+
+All results above marked with Lean identifiers are proved in a single file, \texttt{KRippleV2.lean},
+using Lean~4~\cite{moura2021} and Mathlib~\cite{mathlib2020}.
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Toolchain & Lean \texttt{v4.34.1}, Mathlib (8{,}529 modules) \\
+Size & 1{,}907 lines; 50 theorems, 63 lemmas \\
+Audit & no \texttt{sorry}; \texttt{\#print axioms} lists only \texttt{propext}, \texttt{Classical.choice}, \texttt{Quot.sound} \\
+Build & \texttt{lake build}, about 40\,s with a cached Mathlib, zero warnings \\
+SHA-256 & \texttt{\footnotesize b9f8fa17691531c0625648de6530cfd6859c3fdf108b0a8c0a038879cbe37ce3} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The formal statements are often more general than the informal draft. Theorem~\ref{thm:bound} allows
+arbitrary $D(t)$ and any $|\phi|\le1$, and Theorem~\ref{thm:contraction} requires only a $1$-Lipschitz
+$\phi$. Mathlib did not contain the Lipschitz property or the derivative of $\tanh$, so both were proved
+along the way. Appendix~\ref{app:lean} reproduces the key definitions and theorem statements verbatim,
+extracted from the source by script, so that readers can check the informal statements against the
+formal ones.
+
+\begin{table}[h]
+\centering
+\caption{Claims of our own earlier informal draft that formalisation refuted or sharpened.}\label{tab:corrections}
+\begin{tabular}{@{}p{0.42\linewidth}p{0.52\linewidth}@{}}
+\toprule
+Informal claim & Outcome \\
+\midrule
+For $K>1$ the final state is determined by the sign of the initial perturbation. & False for $d<0$
+(explicit counterexample). True for $d\ge0$, and for small perturbations. \\ \addlinespace
+Saturation reduces the input--response gain. & Not a theorem in signed networks
+(counterexample above). True entrywise in cooperative networks. \\ \addlinespace
+$d$ and $W_{ii}$ separate only above $|r|\approx0.1$. & No mathematical threshold exists: any two nonzero
+samples of different magnitude separate them. The threshold is empirical, set by noise against an
+$O(|x|^3)$ signal, as quantified in Theorem~\ref{thm:ident}(3). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Not formalised.}
+\begin{itemize}
+\item The strict direction of Wielandt's theorem, which needs Perron--Frobenius.
+\item Complex regimes (rotation and invariant circles for $\rho>1$, a Neimark--Sacker
+      bifurcation~\cite{kuznetsov}).
+\item Statistical consistency of the estimators under dependent, noisy data.
+\end{itemize}
+Each is a substantial independent project.
+
+\section{Synthetic numerical checks}\label{sec:numerics}
+
+A script with seed 20261118 (numpy~2.5.2, scipy~1.18.1, about 15\,s) cross-checks the theory on random systems
+with up to 12 nodes. Theorem~\ref{thm:bound} was violated 0 times in 300 random switched systems with
+initial magnitudes of order $10^4$, and the observed maximum reached $99.6\%$ of the bound, so the bound
+is tight. Uniqueness of equilibria under the spectral condition failed 0 times in 300 systems. The
+$K$-regime prediction matched the observed behaviour in $222/222$ cells of a $(d,w)$ grid, including
+32 cells where only local guarantees apply. In the identifiability check, with 4 nodes, noise $0.01$ and
+$T=400$, the errors of $d$ and $W_{ii}$ were about $65$ at input amplitude $0.01$, where the condition
+number was $8.6\times10^3$. At amplitude $1$ they fell to $10^{-3}$. Off-diagonal entries had errors below $0.01$ at every amplitude. With constant $\kappa$ the design had rank $3/4$, giving
+$\hat\beta=0.31$ and $\hat\lambda=-0.24$ against true values $0.9$ and $0.5$. With varying $\kappa$ the
+rank was $4/4$, giving $\hat\beta=0.897$ and $\hat\lambda=0.499$.
+
+\section{Preregistered empirical test: Bitcoin OTC}\label{sec:empirical}
+
+\paragraph{What is tested.} We do not fit equation~\eqref{eq:model} edge by edge. Each round fits a
+\emph{reduced form}: a node's own state plus four global coefficients on signed neighbour aggregates
+(incoming and outgoing, trust and distrust). The test therefore asks whether signed neighbour
+aggregates carry predictive information, which is a necessary but not sufficient consequence of the
+model. Fitted values of $K$ are reduced-form self-gains, not structural estimates.
+
+\paragraph{Data.} The Bitcoin OTC signed trust network~\cite{kumar2016,snap} contains 35{,}592 timestamped
+ratings in $\{-10,\dots,+10\}$. We binned them by week and split them in time: the first $70\%$ of weeks
+for training and the remainder for testing.
+
+\paragraph{Protocol.} Before each round of fitting, an analysis plan was written and its SHA-256 hash
+recorded (\texttt{PLAN.sha256}, \texttt{PLAN\_V2.sha256}). This is \emph{lightweight} preregistration,
+because the same analyst wrote the plan and ran the fit~\cite{nosek2018}. The hashes were recorded in
+our own repository and were not externally timestamped. They document intent but cannot by themselves
+prove that the plans preceded the analyses. Uncertainty was estimated with
+a whole-week block bootstrap (1{,}000 resamples).
+
+\paragraph{Round 1: direct observation model.} The state $r_i(t)$ was the sum of ratings received in
+week $t$, divided by 10. We compared the saturated signed model against constant, persistence, linear,
+unsigned and permuted-network baselines. Four of five preregistered hypotheses failed. On all 470\,k
+node-weeks, $99.6\%$ of which receive no rating the following week, the saturated model had a test MSE
+$5.6\%$ higher than persistence. Diagnosis showed that the failure lay in the observation model, which
+conflated ``no event'' with ``zero ripple''. The hypothesis that held was sign reversal through distrust
+edges: the coefficient was $+0.026$ for incoming trust and $-0.069$ for incoming distrust, essentially
+unchanged after controlling for node degree.
+
+\paragraph{Round 2: two-part observation model.} An event model (logistic regression on activity) was
+combined with a magnitude model fitted on event rows, using a decaying-accumulation state with a time
+constant fixed in advance. Because this design was informed by round~1 and reuses its test period, the
+evidence is \emph{weaker} than a fresh test. A confirmatory run on a second, untouched dataset (Bitcoin
+Alpha) is specified in the plan but has not yet been run.
+
+\begin{table}[h]
+\centering
+\caption{Round 2 results. MSE is computed on the 1{,}761 test rows in which an event occurred, and AUC
+is for predicting a net-negative rating given an event.}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Model & event-row MSE & combined MSE & conditional AUC \\
+\midrule
+B1 self-dynamics only & 0.18761 & 0.000799 & \textbf{0.790} \\
+B2 linear network & 0.18626 & 0.000800 & 0.761 \\
+B3 saturated signed (ours) & 0.18679 & 0.000806 & 0.761 \\
+B4 unsigned & 0.18763 & 0.000804 & 0.738 \\
+B5 permuted network & 0.18631 & 0.000803 & 0.761 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Findings.}
+\begin{itemize}
+\item The two-part model fixed the observation problem. Combined MSE was $3.4\%$ below round-1
+      persistence (95\% CI excludes 0), and the event AUC was $0.95$.
+\item The network propagation term gave \emph{no} detectable gain over self-dynamics: $-0.4\%$, with a
+      CI containing 0. Saturation, sign and true topology were likewise not significantly better than
+      their controls.
+\item This negative result has limited power. The 95\% CI of the event-row MSE difference,
+      $[-0.0098,+0.0084]$, spans about $\pm5\%$ of the event-row MSE ($\approx0.187$). Propagation
+      effects smaller than about $5\%$ therefore cannot be excluded.
+\item Distrust sign reversal held again, with coefficients $+0.021$ and $-0.106$.
+\item Sign early-warning was significant (AUC $0.76$, CI $0.73$--$0.80$), but it came from the node's own
+      history, since baseline B1 reached $0.79$.
+\item The fitted self-gain was $K=d+w_0=0.54$, which lies in the dissipative regime.
+\end{itemize}
+
+\paragraph{Interpretation.} In this sparse, low-frequency rating network, what survives is saturating
+self-dissipation, with $K\approx0.5$, together with an event-intensity model. Cross-node ripples are
+too weak to yield predictive gain, although their coefficients carry the sign pattern predicted by
+balance. This does not refute the propagation part of the theory, but it does not support it either.
+Testing it requires denser, faster interaction data and an analysis powered to detect effects of
+about $1\%$ (Section~\ref{sec:agenda}).
+
+\section{Limitations}
+
+The model is a hypothesis about influence dynamics. The theorems are about the model, not about any
+real system. The observation map from events to $r$ is the main open modelling problem, as round~1
+showed. The empirical evidence is a single dataset, a single analyst, lightweight preregistration and a
+reused test period in round~2. The estimates use global coefficients without node heterogeneity. The
+choice of $\tanh$ is one of many: every bounded, $1$-Lipschitz, odd saturation preserves the main
+results, and the functional form should be chosen from data.
+
+\section{Open problems and collaboration agenda}\label{sec:agenda}
+
+We are seeking academic or laboratory partners for the following work. Each item has a falsification
+criterion that is fixed in advance.
+
+\begin{enumerate}
+\item[\textbf{E1}] \textbf{Confirmatory replication.} Preregister publicly (e.g.\ on OSF), then run the
+      frozen round-2 specification unchanged on
+      the Bitcoin Alpha network and on further signed temporal networks. Failure criterion: event-row
+      MSE of B3 not below B1, with the 95\% CI excluding 0.
+\item[\textbf{E2}] \textbf{Dense interaction data for the propagation term.} Use timestamped, signed or
+      stance-labelled interactions with fast propagation, such as multi-agent LLM message traces,
+      reply and forward cascades with stance labels, or signed hyperlink networks between online
+      communities. Hypothesis: network terms improve held-out prediction over self-dynamics, and
+      $\eta$ predicts attenuation better than frustrated-edge counts.
+\item[\textbf{E3}] \textbf{Interventional design for $d=\beta-\lambda\kappa$.} Run experiments in which a
+      precision or attention variable $\kappa$ is externally varied. This is required by
+      Theorem~\ref{thm:ident}(4) and cannot be replaced by observational data.
+\item[\textbf{E4}] \textbf{Critical-slowing signature.} Test whether nodes estimated near $K\approx1$ show
+      $t^{-1/2}$ relaxation after shocks, with a constant ordered by $w$ as Theorem~\ref{thm:critical}
+      predicts, in contrast to generic early-warning indicators~\cite{scheffer2009}.
+\item[\textbf{F1}] \textbf{Formal mathematics.} Formalise Perron--Frobenius and the strict Wielandt
+      direction in Lean/Mathlib, and establish statistical consistency under mixing.
+\end{enumerate}
+
+\paragraph{What a partner would provide.}
+\begin{itemize}
+\item Access to suitable datasets (E2, E3) under the partner's data governance.
+\item Computing resources for node-heterogeneous fitting on $10^6$--$10^8$ node-time rows, large
+      bootstrap ensembles, multi-agent simulation for E2, and CPU time for Mathlib-scale formal
+      developments (F1).
+\item Independent preregistration and analysis, which would upgrade the evidence from single-analyst
+      to independent replication.
+\end{itemize}
+
+\paragraph{What we provide.}
+\begin{itemize}
+\item The Lean library.
+\item Frozen analysis plans with hashes and scripted, seed-fixed pipelines.
+\item A commitment to report negative results.
+\end{itemize}
+The theory requires little computation by itself. Resources are needed for data scale and independent
+verification.
+
+\section*{Data, code and AI-use statement}
+The Lean development, all numerical and analysis scripts, their outputs, and the preregistered plans
+with their hashes are public at \url{https://github.com/853948826-bit/k-ripple-v2} (code under the MIT
+licence, this manuscript under CC BY 4.0) and archived on Zenodo; the repository README gives the DOI.
+The Bitcoin OTC data are public~\cite{snap} and are not redistributed; the scripts verify the file's
+SHA-256 before use. The formal proofs, analysis scripts and the drafting of this
+manuscript were carried out with the assistance of an AI coding agent (Claude Code, Anthropic). Every
+theorem labelled as verified is checked by the Lean kernel, and every number reported is produced by a
+script in the accompanying repository. Responsibility for the content rests with the author.
+
+\appendix
+\section{Key Lean statements}\label{app:lean}
+The following definitions (with their bodies) and theorem statements (up to \texttt{:=}) are extracted
+verbatim from \texttt{KRippleV2.lean} (SHA-256 above) by the script \texttt{gen\_lean\_appendix.py}. Proofs
+are omitted. \texttt{rho} is the spectral radius of the complexified matrix, valued in $[0,\infty]$. The
+constant $C_0$ of Theorem~\ref{thm:contraction} is named \texttt{K} in the Lean statement.
+
+\input{lean_statements.tex}
+
+\begin{thebibliography}{99}\small
+\bibitem{altafini2013} C.~Altafini. Consensus problems on networks with antagonistic interactions.
+  \emph{IEEE Trans.\ Automatic Control}, 58(4):935--946, 2013.
+\bibitem{buehner2006} M.~Buehner and P.~Young. A tighter bound for the echo state property.
+  \emph{IEEE Trans.\ Neural Networks}, 17, 2006.
+\bibitem{cartwright1956} D.~Cartwright and F.~Harary. Structural balance: a generalization of Heider's theory.
+  \emph{Psychological Review}, 63(5):277--293, 1956.
+\bibitem{cipollina2025} M.~Cipollina, M.~Karatarakis and F.~Wiedijk. Formalized Hopfield networks and
+  Boltzmann machines. arXiv:2512.07766, 2025; LPAR-26, 2026.
+\bibitem{debruijn1958} N.~G.~de~Bruijn. \emph{Asymptotic Methods in Analysis}. North-Holland, 1958.
+\bibitem{estrada2014} E.~Estrada and M.~Benzi. Walk-based measure of balance in signed networks:
+  detecting lack of balance in social networks. \emph{Physical Review E}, 90(4):042802, 2014.
+\bibitem{harary1953} F.~Harary. On the notion of balance of a signed graph.
+  \emph{Michigan Mathematical Journal}, 2(2):143--146, 1953.
+\bibitem{heider1946} F.~Heider. Attitudes and cognitive organization.
+  \emph{Journal of Psychology}, 21:107--112, 1946.
+\bibitem{hopfield1984} J.~J.~Hopfield. Neurons with graded response have collective computational
+  properties like those of two-state neurons. \emph{PNAS}, 81(10):3088--3092, 1984.
+\bibitem{hornjohnson} R.~A.~Horn and C.~R.~Johnson. \emph{Matrix Analysis}, 2nd ed. Cambridge University Press, 2013.
+\bibitem{jaeger2001} H.~Jaeger. The ``echo state'' approach to analysing and training recurrent neural
+  networks. GMD Report 148, German National Research Center for Information Technology, 2001.
+\bibitem{jin1994} L.~Jin, P.~N.~Nikiforuk and M.~M.~Gupta. Absolute stability conditions for discrete-time
+  recurrent neural networks. \emph{IEEE Trans.\ Neural Networks}, 5(6):954--964, 1994.
+\bibitem{kirkley2019} M.~Kirkley, G.~T.~Cantwell and M.~E.~J.~Newman. Balance in signed networks.
+  \emph{Physical Review E}, 99:012320, 2019.
+\bibitem{kumar2016} S.~Kumar, F.~Spezzano, V.~S.~Subrahmanian and C.~Faloutsos. Edge weight prediction in
+  weighted signed networks. In \emph{Proc.\ IEEE ICDM}, pp.~221--230, 2016.
+\bibitem{kuznetsov} Yu.~A.~Kuznetsov. \emph{Elements of Applied Bifurcation Theory}, 3rd ed.
+  Applied Mathematical Sciences 112. Springer, 2004.
+\bibitem{lohmiller1998} W.~Lohmiller and J.-J.~E.~Slotine. On contraction analysis for non-linear systems.
+  \emph{Automatica}, 34(6):683--696, 1998.
+\bibitem{mathlib2020} The mathlib Community. The Lean mathematical library. In \emph{Proc.\ CPP}, pp.~367--381, 2020.
+\bibitem{moura2021} L.~de~Moura and S.~Ullrich. The Lean~4 theorem prover and programming language.
+  In \emph{CADE-28}, LNCS 12699, pp.~625--635, 2021.
+\bibitem{nosek2018} B.~A.~Nosek, C.~R.~Ebersole, A.~C.~DeHaven and D.~T.~Mellor. The preregistration revolution.
+  \emph{PNAS}, 115(11):2600--2606, 2018.
+\bibitem{pasemann1993} F.~Pasemann. Dynamics of a single model neuron. \emph{Int.\ J.\ Bifurcation and Chaos},
+  3(2), 1993. doi:10.1142/S0218127493000210.
+\bibitem{scheffer2009} M.~Scheffer et al. Early-warning signals for critical transitions.
+  \emph{Nature}, 461:53--59, 2009.
+\bibitem{snap} J.~Leskovec and A.~Krevl. SNAP Datasets: Stanford large network dataset collection.
+  \url{http://snap.stanford.edu/data}, 2014.
+\bibitem{wielandt1950} H.~Wielandt. Unzerlegbare, nicht negative Matrizen.
+  \emph{Mathematische Zeitschrift}, 52:642--648, 1950.
+\bibitem{yildiz2012} I.~B.~Yildiz, H.~Jaeger and S.~J.~Kiebel. Re-visiting the echo state property.
+  \emph{Neural Networks}, 35:1--9, 2012.
+\end{thebibliography}
+
+\end{document}

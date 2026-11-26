@@ -1,0 +1,163 @@
+{
+ "P1_global_bound": {
+  "trials": 300,
+  "violations": 0,
+  "max_ratio_to_bound": 0.996,
+  "contrast_cubic_r0_2.5_after_4_steps": 9425000000000000.0
+ },
+ "P2_contraction_unique_equilibrium": {
+  "systems": 300,
+  "non_unique": 0
+ },
+ "P3_scalar_phase_by_K": {
+  "cells": {
+   "K<-1": {
+    "n": 76,
+    "as_predicted": 76,
+    "local_only_cases": 0,
+    "local_only_deviate": 0
+   },
+   "-1<K<0": {
+    "n": 35,
+    "as_predicted": 35,
+    "local_only_cases": 16,
+    "local_only_deviate": 0
+   },
+   "0<K<1": {
+    "n": 35,
+    "as_predicted": 35,
+    "local_only_cases": 16,
+    "local_only_deviate": 0
+   },
+   "K>1": {
+    "n": 76,
+    "as_predicted": 76,
+    "local_only_cases": 0,
+    "local_only_deviate": 0
+   }
+  },
+  "mismatch_outside_local_only": 0
+ },
+ "P3b_complex_rotation": [
+  {
+   "theta": 0.3,
+   "gain": 0.8,
+   "late_amplitude": 0.0,
+   "mean_turn_per_step": 0.0
+  },
+  {
+   "theta": 0.3,
+   "gain": 1.3,
+   "late_amplitude": 1.1313,
+   "mean_turn_per_step": 0.2817
+  },
+  {
+   "theta": 0.8,
+   "gain": 0.8,
+   "late_amplitude": 0.0,
+   "mean_turn_per_step": 0.7857
+  },
+  {
+   "theta": 0.8,
+   "gain": 1.3,
+   "late_amplitude": 1.127,
+   "mean_turn_per_step": 0.8002
+  },
+  {
+   "theta": 1.6,
+   "gain": 0.8,
+   "late_amplitude": 0.0,
+   "mean_turn_per_step": 1.5708
+  },
+  {
+   "theta": 1.6,
+   "gain": 1.3,
+   "late_amplitude": 1.3747,
+   "mean_turn_per_step": 1.5708
+  }
+ ],
+ "P4_frustration_attenuates": {
+  "balanced_equal": "249/249",
+  "unbalanced_strictly_smaller": "232/234",
+  "rho_ratio_median": 0.6827,
+  "spearman_frustration_fraction_vs_ratio": -0.105,
+  "spearman_p": 0.108
+ },
+ "P5_identifiability": {
+  "diag_vs_offdiag_by_amplitude": [
+   {
+    "input_amp": 0.01,
+    "cond": 8577.0,
+    "err_D_ii": 64.7179,
+    "err_W_ii": 64.751,
+    "err_W_ij": 0.0086
+   },
+   {
+    "input_amp": 0.1,
+    "cond": 79.5,
+    "err_D_ii": 0.0426,
+    "err_W_ii": 0.042,
+    "err_W_ij": 0.0017
+   },
+   {
+    "input_amp": 1.0,
+    "cond": 7.4,
+    "err_D_ii": 0.0007,
+    "err_W_ii": 0.0013,
+    "err_W_ij": 0.0008
+   },
+   {
+    "input_amp": 3.0,
+    "cond": 8.5,
+    "err_D_ii": 0.0003,
+    "err_W_ii": 0.0007,
+    "err_W_ij": 0.0005
+   }
+  ],
+  "beta_lambda_split": [
+   {
+    "kappa_varies": false,
+    "design_rank": 3,
+    "of": 4,
+    "beta_hat": 0.3051,
+    "lambda_hat": -0.2441,
+    "true": [
+     0.9,
+     0.5
+    ]
+   },
+   {
+    "kappa_varies": true,
+    "design_rank": 4,
+    "of": 4,
+    "beta_hat": 0.8974,
+    "lambda_hat": 0.4994,
+    "true": [
+     0.9,
+     0.5
+    ]
+   }
+  ]
+ },
+ "P6_switching": {
+  "each_rho": [
+   0.3,
+   0.3
+  ],
+  "alternating_growth_per_step": 3.0297,
+  "linear_norm_after_60": 8.333e+28,
+  "saturating_norm_after_60": 3.2875,
+  "saturating_bound_P1": 4.2857,
+  "common_inf_norm_certificate": false
+ },
+ "P7_response_gain": {
+  "systems": 100,
+  "max_abs_err_vs_finite_diff": 2.38e-09,
+  "median_gain_ratio_saturated_vs_linear": 0.7044
+ },
+ "meta": {
+  "seed": 20261118,
+  "numpy": "2.5.2",
+  "python": "3.12.14"
+ }
+}
