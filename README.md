@@ -6,7 +6,9 @@ Code, machine-checked proofs and analysis materials for the preprint
 
 The model is `r(t+1) = D(t) r(t) + W(t) tanh r(t) + s(t)`. Here `r` is a signed, unbounded state, `D` is retention, and `W` is a signed, unnormalised influence matrix. The paper proves boundedness, contraction certificates, a scalar regime map indexed by the signed gain `K = d + w`, a frustration-attenuation inequality, identifiability criteria and a global input–response gain formula. All proofs are in Lean 4 with Mathlib. The paper also reports two lightweight-preregistered fits on the Bitcoin OTC signed network, which mostly gave negative results.
 
-DOI: *assigned by Zenodo at the first release; it will be added here.*
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24568466.svg)](https://doi.org/10.5281/zenodo.24568466)
+
+DOI (all versions, resolves to the latest): [10.5281/zenodo.24568466](https://doi.org/10.5281/zenodo.24568466). v0.1.0: [10.5281/zenodo.24568467](https://doi.org/10.5281/zenodo.24568467).
 
 ## Contents
 
@@ -63,4 +65,4 @@ The formal proofs, analysis scripts and the drafting of the manuscript were done
 
 ## Citation
 
-See `CITATION.cff`. The Zenodo DOI will be added after the first release.
+See `CITATION.cff`, or cite the Zenodo record [10.5281/zenodo.24568466](https://doi.org/10.5281/zenodo.24568466).

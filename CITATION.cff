@@ -1,8 +1,9 @@
 cff-version: 1.2.0
 message: "If you use this work, please cite it as below."
 title: "Saturated Signed Ripple Dynamics on Directed Networks: Machine-Checked Theory and a Preregistered Empirical Test"
-version: 0.1.0
+version: 0.1.1
 date-released: 2026-11-27
+doi: "10.5281/zenodo.24568466"
 license: MIT
 repository-code: "https://github.com/853948826-bit/k-ripple-v2"
 type: software
